@@ -23,11 +23,11 @@ import org.osgeo.proj4j.ProjCoordinate;
  * A class representing a geodetic datum.
  * <p>
  * A geodetic datum consists of a set of reference points on or in the Earth,
- * and a reference {@link Ellipsoid} giving an approximation 
+ * and a reference {@link Ellipsoid} giving an approximation
  * to the true shape of the geoid.
  * <p>
- * In order to transform between two geodetic points specified 
- * on different datums, it is necessary to transform between the 
+ * In order to transform between two geodetic points specified
+ * on different datums, it is necessary to transform between the
  * two datums.  There are various ways in which this
  * datum conversion may be specified:
  * <ul>
@@ -35,25 +35,26 @@ import org.osgeo.proj4j.ProjCoordinate;
  * <li>A 7-parameter conversion
  * <li>A grid-shift conversion
  * </ul>
- * In order to be able to transform between any two datums, 
- * the parameter-based transforms are provided as a transform to 
- * the common WGS84 datum.  The WGS transforms of two arbitrary datum transforms can 
+ * In order to be able to transform between any two datums,
+ * the parameter-based transforms are provided as a transform to
+ * the common WGS84 datum.  The WGS transforms of two arbitrary datum transforms can
  * be concatenated to provide a transform between the two datums.
  * <p>
  * Notable datums in common use include {@link #NAD83} and {@link #WGS84}.
- * 
+ *
  */
-public class Datum 
+public class Datum
 {
   public static final int TYPE_UNKNOWN = 0;
   public static final int TYPE_WGS84 = 1;
   public static final int TYPE_3PARAM = 2;
   public static final int TYPE_7PARAM = 3;
   public static final int TYPE_GRIDSHIFT = 4;
-  
+  public static final int TYPE_10PARAM = 5;
+
   private static final double[] DEFAULT_TRANSFORM = new double[] { 0.0, 0.0, 0.0 };
 
-  public static final Datum WGS84 = new Datum("WGS84", 0,0,0, Ellipsoid.WGS84, "WGS84"); 
+  public static final Datum WGS84 = new Datum("WGS84", 0,0,0, Ellipsoid.WGS84, "WGS84");
   public static final Datum GGRS87 = new Datum("GGRS87", -199.87,74.79,246.62, Ellipsoid.GRS80, "Greek_Geodetic_Reference_System_1987");
   public static final Datum NAD83 = new Datum("NAD83", 0,0,0, Ellipsoid.GRS80,"North_American_Datum_1983");
   public static final Datum NAD27 = new Datum("NAD27", "@conus,@alaska,@ntv2_0.gsb,@ntv1_can.dat", Ellipsoid.CLARKE_1866,"North_American_Datum_1927");
@@ -68,32 +69,32 @@ public class Datum
 	private String name;
 	private Ellipsoid ellipsoid;
 	private double[] transform = DEFAULT_TRANSFORM;
-	
-  public Datum(String code, 
-      String transformSpec, 
+
+  public Datum(String code,
+      String transformSpec,
       Ellipsoid ellipsoid,
       String name) {
     // TODO: implement handling of transform specification
     this(code, (double[]) null, ellipsoid, name);
   }
-  
-  public Datum(String code, 
-      double deltaX, double deltaY, double deltaZ, 
+
+  public Datum(String code,
+      double deltaX, double deltaY, double deltaZ,
       Ellipsoid ellipsoid,
       String name) {
     this(code, new double[] { deltaX, deltaY, deltaZ },ellipsoid, name);
   }
-  
-  public Datum(String code, 
+
+  public Datum(String code,
       double deltaX, double deltaY, double deltaZ,
       double rx, double ry, double rz, double mbf,
       Ellipsoid ellipsoid,
       String name) {
     this(code, new double[] { deltaX, deltaY, deltaZ, rx, ry, rz, mbf },ellipsoid, name);
   }
-  
-  public Datum(String code, 
-      double[] transform, 
+
+  public Datum(String code,
+      double[] transform,
       Ellipsoid ellipsoid,
       String name) {
     this.code = code;
@@ -102,41 +103,42 @@ public class Datum
     if (transform != null)
       this.transform = transform;
   }
-  
+
   public String getCode() { return code; }
-  
+
   public String getName() { return name; }
-  
+
   public String toString() { return "[Datum-" + name + "]"; }
-  
+
   public Ellipsoid getEllipsoid()
   {
     return ellipsoid;
   }
-  
+
   public double[] getTransformToWGS84()
   {
     return transform;
   }
-  
+
   public int getTransformType()
   {
     if (transform  == null) return TYPE_WGS84;
-    
+
     if (isIdentity(transform)) return TYPE_WGS84;
-    
+
     if (transform.length  == 3) return TYPE_3PARAM;
     if (transform.length  == 7) return TYPE_7PARAM;
-    
+    if (transform.length  == 10) return TYPE_10PARAM;
+
     return TYPE_WGS84;
   }
-  
+
   /**
-   * Tests whether the datum parameter-based transform 
-   * is the identity transform 
+   * Tests whether the datum parameter-based transform
+   * is the identity transform
    * (in which case datum transformation can be short-circuited,
    * thus avoiding some loss of numerical precision).
-   * 
+   *
    * @param transform
    * @return
    */
@@ -152,15 +154,15 @@ public class Datum
     }
     return true;
   }
-  
+
   public boolean hasTransformToWGS84()
   {
     int transformType = getTransformType();
-    return transformType == TYPE_3PARAM || transformType == TYPE_7PARAM;
+    return transformType == TYPE_3PARAM || transformType == TYPE_7PARAM || transformType == TYPE_10PARAM;
   }
-  
+
   public static final double ELLIPSOID_E2_TOLERANCE = 0.000000000050;
-  
+
   /**
    * Tests if this is equal to another {@link Datum}.
    * <p>
@@ -169,7 +171,7 @@ public class Datum
    * <li>their transforms are equal
    * <li>OR their ellipsoids are (approximately) equal
    * </ul>
-   * 
+   *
    * @param datum
    * @return
    */
@@ -177,35 +179,35 @@ public class Datum
   {
   	// false if tranforms are not equal
     if( getTransformType() != datum.getTransformType()) {
-      return false; 
+      return false;
     }
     // false if ellipsoids are not (approximately) equal
     if( ellipsoid.getEquatorRadius() != ellipsoid.getEquatorRadius()) {
-      if (Math.abs(ellipsoid.getEccentricitySquared() 
+      if (Math.abs(ellipsoid.getEccentricitySquared()
            - datum.ellipsoid.getEccentricitySquared() )  > ELLIPSOID_E2_TOLERANCE)
       return false;
-    } 
-    
+    }
+
     // false if transform parameters are not identical
-    if( getTransformType() == TYPE_3PARAM || getTransformType() == TYPE_7PARAM) {
+    if( getTransformType() == TYPE_3PARAM || getTransformType() == TYPE_7PARAM || getTransformType() == TYPE_10PARAM) {
       for (int i = 0; i < transform.length; i++) {
         if (transform[i] != datum.transform[i])
           return false;
       }
       return true;
-    } 
-    /* 
+    }
+    /*
      //TODO: complete
     else if( this.datum_type == Proj4js.common.PJD_GRIDSHIFT ) {
       return strcmp( pj_param(this.params,"snadgrids").s,
                      pj_param(dest.params,"snadgrids").s ) == 0;
     }
-    */ 
+    */
     return true; // datums are equal
 
   }
 
-  public void transformFromGeocentricToWgs84(ProjCoordinate p) 
+  public void transformFromGeocentricToWgs84(ProjCoordinate p)
   {
     if( transform.length == 3 )
     {
@@ -223,7 +225,7 @@ public class Datum
       double Ry_BF = transform[4];
       double Rz_BF = transform[5];
       double M_BF  = transform[6];
-      
+
       double x_out = M_BF*(       p.x - Rz_BF*p.y + Ry_BF*p.z) + Dx_BF;
       double y_out = M_BF*( Rz_BF*p.x +       p.y - Rx_BF*p.z) + Dy_BF;
       double z_out = M_BF*(-Ry_BF*p.x + Rx_BF*p.y +       p.z) + Dz_BF;
@@ -231,9 +233,33 @@ public class Datum
       p.x = x_out;
       p.y = y_out;
       p.z = z_out;
+    } else if (transform.length == 10) {
+    	double dx = transform[0];
+    	double dy = transform[1];
+    	double dz = transform[2];
+
+    	double rx = (Math.PI / 180.0) * transform[3] / 3600.0;
+    	double ry = (Math.PI / 180.0) * transform[4] / 3600.0;
+    	double rz = (Math.PI / 180.0) * transform[5] / 3600.0;
+
+    	double xm = transform[6];
+    	double ym = transform[7];
+    	double zm = transform[8];
+
+    	double sf = 0.000001 * transform[9];
+
+    	double[] resp = new double[3];
+
+		resp[0] = dx + p.x + sf * (p.x-xm) + rz * (p.y-ym) - ry * (p.z-zm);
+		resp[1] = dy + p.y - rz * (p.x-xm) + sf * (p.y-ym) + rx * (p.z-zm);
+		resp[2] = dz + p.z + ry * (p.x-xm) - rx * (p.y-ym) + sf * (p.z-zm);
+
+		p.x = resp[0];
+		p.y = resp[1];
+		p.z = resp[2];
     }
   }
-  public void transformToGeocentricFromWgs84(ProjCoordinate p) 
+  public void transformToGeocentricFromWgs84(ProjCoordinate p)
   {
     if( transform.length == 3 )
     {
@@ -251,7 +277,7 @@ public class Datum
       double Ry_BF = transform[4];
       double Rz_BF = transform[5];
       double M_BF  = transform[6];
-      
+
       double x_tmp = (p.x - Dx_BF) / M_BF;
       double y_tmp = (p.y - Dy_BF) / M_BF;
       double z_tmp = (p.z - Dz_BF) / M_BF;
@@ -259,6 +285,30 @@ public class Datum
       p.x =        x_tmp + Rz_BF*y_tmp - Ry_BF*z_tmp;
       p.y = -Rz_BF*x_tmp +       y_tmp + Rx_BF*z_tmp;
       p.z =  Ry_BF*x_tmp - Rx_BF*y_tmp +       z_tmp;
+    } else if (transform.length == 10) {
+    	double dx = transform[0];
+    	double dy = transform[1];
+    	double dz = transform[2];
+
+    	double rx = (Math.PI / 180.0) * transform[3] / 3600.0;
+    	double ry = (Math.PI / 180.0) * transform[4] / 3600.0;
+    	double rz = (Math.PI / 180.0) * transform[5] / 3600.0;
+
+    	double xm = transform[6];
+    	double ym = transform[7];
+    	double zm = transform[8];
+
+    	double sf = 0.000001 * transform[9];
+
+    	double[] resp = new double[3];
+
+		resp[0] = p.x - dx - sf * (p.x-xm) - rz * (p.y-ym) + ry * (p.z-zm);
+		resp[1] = p.y - dy + rz * (p.x-xm) - sf * (p.y-ym) - rx * (p.z-zm);
+		resp[2] = p.z - dz - ry * (p.x-xm) + rx * (p.y-ym) - sf * (p.z-zm);
+
+		p.x = resp[0];
+		p.y = resp[1];
+		p.z = resp[2];
     }
   }
 }

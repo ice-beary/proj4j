@@ -14,33 +14,33 @@ import org.osgeo.proj4j.units.Unit;
 import org.osgeo.proj4j.units.Units;
 import org.osgeo.proj4j.util.ProjectionMath;
 
-public class Proj4Parser 
+public class Proj4Parser
 {
   private Registry registry;
-  
+
   public Proj4Parser(Registry registry) {
     this.registry = registry;
   }
-  
+
   public CoordinateReferenceSystem parse(String name, String[] args)
   {
     if (args == null)
       return null;
-    
+
     Map params = createParameterMap(args);
     Proj4Keyword.checkUnsupported(params.keySet());
     DatumParameters datumParam = new DatumParameters();
     parseDatum(params, datumParam);
     parseEllipsoid(params, datumParam);
     Datum datum = datumParam.getDatum();
-    Ellipsoid ellipsoid = datum.getEllipsoid(); 
+    Ellipsoid ellipsoid = datum.getEllipsoid();
     // TODO: this makes a difference - why?
     // which is better?
-//    Ellipsoid ellipsoid = datumParam.getEllipsoid(); 
+//    Ellipsoid ellipsoid = datumParam.getEllipsoid();
     Projection proj = parseProjection(params, ellipsoid);
     return new CoordinateReferenceSystem(name, args, datum, proj);
   }
-  
+
  /**
   * Creates a {@link Projection}
   * initialized from a PROJ.4 argument list.
@@ -57,51 +57,51 @@ public class Proj4Parser
    }
 
    projection.setEllipsoid(ellipsoid);
-   
-   //TODO: better error handling for things like bad number syntax.  
+
+   //TODO: better error handling for things like bad number syntax.
    // Should be able to report the original param string in the error message
    // Should the exception be lib-specific?  (e.g. ParseException)
-   
+
    s = (String)params.get( Proj4Keyword.alpha );
-   if ( s != null ) 
+   if ( s != null )
      projection.setAlphaDegrees( Double.parseDouble( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lonc );
-   if ( s != null ) 
+   if ( s != null )
      projection.setLonCDegrees( Double.parseDouble( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lat_0 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setProjectionLatitudeDegrees( parseAngle( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lon_0 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setProjectionLongitudeDegrees( parseAngle( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lat_1 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setProjectionLatitude1Degrees( parseAngle( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lat_2 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setProjectionLatitude2Degrees( parseAngle( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.lat_ts );
-   if ( s != null ) 
+   if ( s != null )
      projection.setTrueScaleLatitudeDegrees( parseAngle( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.x_0 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setFalseEasting( Double.parseDouble( s ) );
-   
+
    s = (String)params.get( Proj4Keyword.y_0 );
-   if ( s != null ) 
+   if ( s != null )
      projection.setFalseNorthing( Double.parseDouble( s ) );
 
    s = (String)params.get( Proj4Keyword.k_0 );
-   if ( s == null ) 
+   if ( s == null )
      s = (String)params.get( Proj4Keyword.k );
-   if ( s != null ) 
+   if ( s != null )
      projection.setScaleFactor( Double.parseDouble( s ) );
 
    s = (String)params.get( Proj4Keyword.units );
@@ -113,16 +113,16 @@ public class Proj4Parser
        projection.setUnits( unit );
      }
    }
-   
+
    s = (String)params.get( Proj4Keyword.to_meter );
-   if ( s != null ) 
+   if ( s != null )
      projection.setFromMetres( 1.0/Double.parseDouble( s ) );
 
-   if ( params.containsKey( Proj4Keyword.south ) ) 
+   if ( params.containsKey( Proj4Keyword.south ) )
      projection.setSouthernHemisphere(true);
 
    //TODO: implement some of these parameters ?
-     
+
    // this must be done last, since behaviour depends on other params being set (eg +south)
    if (projection instanceof TransverseMercatorProjection) {
      s = (String) params.get(Proj4Keyword.zone);
@@ -136,11 +136,11 @@ public class Proj4Parser
    return projection;
  }
 
- private void parseDatum(Map params, DatumParameters datumParam) 
+ private void parseDatum(Map params, DatumParameters datumParam)
  {
    String towgs84 = (String) params.get(Proj4Keyword.towgs84);
    if (towgs84 != null) {
-     double[] datumConvParams = parseToWGS84(towgs84); 
+     double[] datumConvParams = parseToWGS84(towgs84);
      datumParam.setDatumTransform(datumConvParams);
    }
 
@@ -151,15 +151,15 @@ public class Proj4Parser
        throw new InvalidValueException("Unknown datum: " + code);
      datumParam.setDatum(datum);
    }
-   
+
  }
- 
+
  private double[] parseToWGS84(String paramList)
  {
    String[] numStr = paramList.split(",");
-   
-   if (! (numStr.length == 3 || numStr.length == 7)) {
-     throw new InvalidValueException("Invalid number of values (must be 3 or 7) in +towgs84: " + paramList);
+
+   if (! (numStr.length == 3 || numStr.length == 7 || numStr.length == 10)) {
+     throw new InvalidValueException("Invalid number of values (must be 3 or 7 or 10) in +towgs84: " + paramList);
    }
    double[] param = new double[numStr.length];
    for (int i = 0; i < numStr.length; i++) {
@@ -168,32 +168,32 @@ public class Proj4Parser
    }
    if (param.length > 3) {
      // optimization to detect 3-parameter transform
-     if (param[3] == 0.0 
-         && param[4] == 0.0 
-         && param[5] == 0.0 
-         && param[6] == 0.0 
+     if (param[3] == 0.0
+         && param[4] == 0.0
+         && param[5] == 0.0
+         && param[6] == 0.0
          ) {
        param = new double[] { param[0], param[1], param[2] };
      }
    }
-   
+
    /**
-    * PROJ4 towgs84 7-parameter transform uses 
-    * units of arc-seconds for the rotation factors, 
+    * PROJ4 towgs84 7-parameter transform uses
+    * units of arc-seconds for the rotation factors,
     * and parts-per-million for the scale factor.
-    * These need to be converted to radians and a scale factor. 
+    * These need to be converted to radians and a scale factor.
     */
-   if (param.length > 3) {
+   if (param.length == 7) {
      param[3] *= ProjectionMath.SECONDS_TO_RAD;
      param[4] *= ProjectionMath.SECONDS_TO_RAD;
      param[5] *= ProjectionMath.SECONDS_TO_RAD;
      param[6] = (param[6]/ProjectionMath.MILLION) + 1;
    }
-   
+
    return param;
  }
- 
- private void parseEllipsoid(Map params, DatumParameters datumParam) 
+
+ private void parseEllipsoid(Map params, DatumParameters datumParam)
  {
    double b = 0;
    String s;
@@ -219,7 +219,7 @@ public class Proj4Parser
      double a = Double.parseDouble(s);
      datumParam.setA(a);
    }
-   
+
    s = (String) params.get(Proj4Keyword.es);
    if (s != null) {
      double es = Double.parseDouble(s);
@@ -252,7 +252,7 @@ public class Proj4Parser
 
    /*
     * // None of these appear to be supported by PROJ4 ??
-    * 
+    *
     * s = (String)
     * params.get(Proj4Param.R_A); if (s != null && Boolean.getBoolean(s)) { a *=
     * 1. - es * (SIXTH + es * (RA4 + es * RA6)); } else { s = (String)
@@ -273,14 +273,14 @@ public class Proj4Parser
     * es) / tmp; es = 0.; } } } } } } } }
     */
  }
- 
+
  /**
   * Parse ellipsoid modifiers.
-  * 
+  *
   * @param params
   * @param datumParam
   */
- private void parseEllipsoidModifiers(Map params, DatumParameters datumParam) 
+ private void parseEllipsoidModifiers(Map params, DatumParameters datumParam)
  {
    /**
     * Modifiers are mutually exclusive, so when one is detected method returns
@@ -291,7 +291,7 @@ public class Proj4Parser
    }
 
  }
- 
+
  private Map createParameterMap(String[] args) {
    Map params = new HashMap();
    for (int i = 0; i < args.length; i++) {
